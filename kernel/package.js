@@ -13,3 +13,5 @@ class Package extends Emitter {
     }
 
 }
+
+module.exports = Package;
