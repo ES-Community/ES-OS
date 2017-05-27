@@ -1,36 +1,71 @@
-const Utils     = require('./utils.js');
-const Terminal  = require('./terminal.js');
-const Readline  = require('readline');
-const Emitter   = require('events');
+const Utils         = require('./utils.js');
+const Session       = require('./session.js');
+const Readline      = require('readline');
+const Emitter       = require('events');
+const Readable      = require('stream').Readable;
 
+/*
+ * Core Commands!
+ */
+const CoreCommands = {
+    "connect": async (core,pkg) => {
+        core.stdout.push(`
+******************************************************************\n
+********               ES-OS Version 1.0.0                ********\n
+******************************************************************\n
+Kernel version : 1.0.0 \n
+All right reserved ES-Community \n\n
+        `);
+        const sess      = new Session();
+        const sessID    = sess.getSessionID();
+        sess.on('connected',() => {
+            core.stdout.push(`[${sessID}] Session logged! \n`);
+        });
+        sess.on('disconnect',() => {
+            core.stdout.push(`[${sessID}] Session deleted and disconnected from OS registery\n`);
+            core.sessions.delete(sessID);
+        });
+        core.stdout.push(`[SYSTEM] Session created with id => ${sessID} \n`);
+        core.sessions.set(sessID,sess);
+        return sessID;
+    }
+}
+
+/*
+ * Interfaces
+ */
 const ICoreConstructor = {
-    ip: "0.0.0.0"
+    ip: "0.0.0.0",
+    sessionTimeOut: 5000,
+    sessions: new Map(),
+    stdout: new Readable(),
+    started: false
 }
 
 class Core extends Emitter {
 
     constructor(config) {
         super();
-        this.started = false;
         Object.assign(this,ICoreConstructor,config);
+        this.stdout._read = function() {
+            // Nothing!
+        };
 
-        this.sessions   = new Map();
-        this.users      = new Map();
-        this.users.set('root',{
-            password: 'root',
-            right: 777
-        });
-        this.tty = new Terminal();
+        this.usersRegistery = {
+            "root": {
+                password: "root"
+            }
+        };
 
-        this.on('connection',async () => {
-            const user      = await this.tty.getInput('user: ');
-            const password  = await this.tty.getInput('password: ');
-            /*if(this.users.has(user) === true) {
-                if(this.users.get(user).password === password) {
-                    console.log('connected!');
+        /* System health check! */
+        setInterval(() => {
+            this.sessions.forEach( sess => {
+                if(sess.connected === false && Date.now() - sess.dt_created > this.sessionTimeOut) {
+                    this.stdout.push('[SYSTEM] Session dropped\n');
+                    sess.disconnect();
                 }
-            }*/
-        });
+            });
+        },1000);
     }
 
     registerUser(login,password) {
@@ -48,29 +83,51 @@ class Core extends Emitter {
     stop() {
         if(this.started === false) return;
         this.sessions.forEach(sess => {
-            // sess.disconnect();
+            sess.disconnect();
         });
         this.started = false;
     }
 
+    login(sessID,user,password) {
+        return new Promise(async (resolve,reject) => {
+            if(this.sessions.has(sessID) === false) {
+                reject('[SYSTEM] Invalid sessionID');
+            }
+            if(this.usersRegistery.hasOwnProperty(user) === false) {
+                reject('[SYSTEM] invalid username');
+            }
+            if(this.usersRegistery[user].password !== password) {
+                reject('[SYSTEM] Invalid user password!');
+            }
+            const sess = this.sessions.get(sessID);
+            sess.connect({
+                user
+            });
+            resolve(sess);
+        });
+    }
+
     send(pkg) {
-        return new Promise((resolve,reject) => {
+        return new Promise(async (resolve,reject) => {
             if(this.started === false) {
                 reject("OS Not started!");
             }
 
-            console.log('Pkg received!');
-            console.log(JSON.stringify(pkg,null,4));
-            console.log('--------------------');
-            if(pkg.event === 'connect') {
-                this.emit('connection');
-                resolve(void 0);
-            }
-            else if(pkg.event === 'ping') {
-                resolve(true);
+            this.stdout.push('[SYSTEM] Pkg received ');
+            this.stdout.push(JSON.stringify(pkg)+'\n');
+            this.stdout.push('--------------------\n');
+
+            if(CoreCommands.hasOwnProperty(pkg.event)) {
+                try {
+                    const res = await CoreCommands[pkg.event](this,pkg);
+                    resolve(res);
+                }
+                catch(Err) {
+                    reject(Err);
+                }
             }
             else {
-                reject('Unknow system event');
+                reject('[SYSTEM] Unknow system command');
             }
         })
     }
