@@ -1,13 +1,14 @@
 const Utils         = require('./utils.js');
 const Session       = require('./session.js');
+const Package       = require('./package.js');
 const Readline      = require('readline');
 const Emitter       = require('events');
 const Readable      = require('stream').Readable;
 
 /*
- * Core Commands!
+ * SYSCMD Commands!
  */
-const CoreCommands = {
+const SYSCMD = {
     "connect": async (core,pkg) => {
         core.stdout.push(`
 ******************************************************************\n
@@ -88,6 +89,18 @@ class Core extends Emitter {
         this.started = false;
     }
 
+    use(systemPackage) {
+        if(systemPackage instanceof Package) {
+            // Pipe package stream!
+            systemPackage.stdout.pipe(this.stdout);
+            systemPackage.commands.forEach( (asyncFN, cmdName) => {
+                if(SYSCMD.hasOwnProperty(cmdName) === false) {
+                    SYSCMD[cmdName] = asyncFN;
+                }
+            });
+        }
+    }
+
     login(sessID,user,password) {
         return new Promise(async (resolve,reject) => {
             if(this.sessions.has(sessID) === false) {
@@ -117,9 +130,9 @@ class Core extends Emitter {
             this.stdout.push(JSON.stringify(pkg)+'\n');
             this.stdout.push('--------------------\n');
 
-            if(CoreCommands.hasOwnProperty(pkg.event)) {
+            if(SYSCMD.hasOwnProperty(pkg.event)) {
                 try {
-                    const res = await CoreCommands[pkg.event](this,pkg);
+                    const res = await SYSCMD[pkg.event](this,pkg);
                     resolve(res);
                 }
                 catch(Err) {
