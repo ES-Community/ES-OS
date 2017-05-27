@@ -1,0 +1,25 @@
+{
+  "name": "es-os",
+  "version": "1.0.0",
+  "description": "ECMAscript virtual OS (for games or things like that)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js --harmony"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ES-Community/ES-OS.git"
+  },
+  "keywords": [
+    "ECMAScript",
+    "OS",
+    "virtual"
+  ],
+  "author": "ES-Community",
+  "license": "WTFPL",
+  "bugs": {
+    "url": "https://github.com/ES-Community/ES-OS/issues"
+  },
+  "homepage": "https://github.com/ES-Community/ES-OS#readme"
+}
