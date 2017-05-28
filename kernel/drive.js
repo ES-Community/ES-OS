@@ -170,6 +170,62 @@ class DriveNodeDirectory extends DriveNode{
     }
     return currentNode;
   }
+  forEach(cb){
+    (function next(node){
+      cb(node);
+      node.children.forEach(next);
+    })(this)
+  }
+}
+
+class DriveNodeFile extends DriveNode {
+  constructor(father,name,{perm=777,own_user=1,own_group=1,content=''}){
+    super(father,name,{perm,own_user,own_group});
+    this.type=this.constructor.TYPE.FILE;
+    this.content=content;
+  }
+  write(text){
+    this.content=text;
+  }
+  read(){
+    return this.content;
+  }
+  append(text){
+    this.content+=text;
+  }
+  prepend(text){
+    this.content=text+=this.content;
+  }
+}
+
+class DriveNodeBinary extends DriveNode {
+  constructor(father,name,{perm=777,own_user=1,own_group=1,content=''}){
+    super(father,name,{perm,own_user,own_group});
+    this.type=this.constructor.TYPE.FILE;
+    this._content='';
+    this.setContent(content);
+  }
+  getContent(){
+    return new Buffer(this._content,'base64');
+  }
+  setContent(binary){
+    if(binary instanceof Buffer){
+      this._content = binary.toString('base64');
+    }else{
+      this._content = new Buffer(binary).toString('base64');
+    }
+  }
+}
+
+class DriveNodeLink extends DriveNode{
+  constructor(father,name,{perm=777,own_user=1,own_group=1,link=''}){
+    super(father,name,{perm,own_user,own_group});
+    this.type=this.constructor.TYPE.FILE;
+    this.link=link;
+  }
+  get linked(){
+    return this.rootNode.walkTo(this.link);
+  }
 }
 
 class Drive {
@@ -186,4 +242,7 @@ module.exports = {
   Drive,
   DriveNode,
   DriveNodeDirectory,
+  DriveNodeFile,
+  DriveNodeBinary,
+  DriveNodeLink,
   DrivePerm};
