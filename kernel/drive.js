@@ -74,9 +74,9 @@ class DrivePerm {
 }
 
 class DriveNode{
-  constructor(parent,name,type=this.constructor.TYPE.UNDEFINED,{content='',perm=777,own_user=1,own_group=1}){
+  constructor(parent,name,{perm=777,own_user=1,own_group=1}){
     this.parent=parent;
-    this.type=type;
+    this.type=this.constructor.TYPE.UNDEFINED;
     this.perm=new DrivePerm(perm);
     this.own={
       user:own_user,
@@ -104,7 +104,14 @@ class DriveNode{
     }
     return depth
   }
-
+  get rootNode(){
+    let currentNode=this;
+    while(currentNode.parent!=null){
+      currentNode=currentNode.parent;
+    }
+    return currentNode;
+  }
+  indexOfChild(name){return -2;}
 }
 DriveNode.TYPE={
   FILE:'-',
@@ -114,10 +121,69 @@ DriveNode.TYPE={
   UNDEFINED:'0'
 }
 
+class DriveNodeDirectory extends DriveNode{
+  constructor(father,name,{perm=777,own_user=1,own_group=1,children=[]}){
+    super(father,name,{perm,own_user,own_group});
+    this.type=this.constructor.TYPE.DIRECTORY;
+    this.children=children;
+  }
+  indexOfChild(name){
+    return this.children.map(e=>e.name).indexOf(name);
+  }
+  addChild(driveNode){
+    if(!(driveNode instanceof DriveNode))
+      throw new Error(`cannot add child who is not a DriveNode instance`);
+    if(driveNode.name.indexOf('/')!==-1)
+      throw new Error(`"/" is not allowed on file name`);
+    if(this.indexOfChild(driveNode.name)!==-1)
+      throw new Error(`"${driveNode.name}" already exist on "${this.path}"`);
+    this.children.push(driveNode);
+  }
+  rmChild(name,force=false){
+    let index = this.indexOfChild(name);
+    if(index === -1)
+      throw new Error(`"${this.path}" hasn't child named "${name}", cannot delete`);
+    let child = this.children[index];
+    if(child.children!==undefined&&child.children.length>0&&!force)
+      throw new Error(`"${child.path}" is not empty, cannot delete`);
+    return this.children.splice(index,1);
+  }
+  walkTo(path){
+    let currentNode = (path.charAt(0)==='/')?this.rootNode:this;
+    let pathArray=path.split('/');
+    for(let i=0;i<pathArray.length;i++){
+      const pelem = pathArray[i];
+      if(pelem===''||pelem==='.')
+        continue;
+      if(pelem==='..'){
+        currentNode=currentNode.father||currentNode;
+        continue;
+      }
+      let index = currentNode.indexOfChild(pelem);
+      if(index===-1) {
+        throw new Error(`cannot find "${path}" from "${this.path}"`);
+      }else if(index===-2){
+        throw new Error(`"${pelem}" is not a directory on "${path}" from "${this.path}"`);
+      } else {
+        currentNode=currentNode.children[index];
+      }
+    }
+    return currentNode;
+  }
+}
+
 class Drive {
   constructor() {
-      this.root=DriveNode(null,DriveNode.TYPE.DIRECTORY,777)
+    this.root=DriveNodeDirectory(null,'');
+    this.cwd=this.root;
+  }
+  get pwd(){
+    return this.cwd.path;
   }
 
 }
-module.exports = {Drive,DriveNode,DrivePerm};
+module.exports = {
+  Drive,
+  DriveNode,
+  DriveNodeDirectory,
+  DrivePerm};
