@@ -3,8 +3,11 @@ const Readable = require('stream').Readable;
 
 class Package extends Emitter {
 
-    constructor() {
+    constructor(prefix) {
         super();
+        if(prefix != undefined && typeof prefix === 'string') {
+            this.prefix = prefix;
+        }
         this.stdout = new Readable(); 
         this.stdout._read = function() {
             // Nothing;
