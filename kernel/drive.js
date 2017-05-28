@@ -228,21 +228,64 @@ class DriveNodeLink extends DriveNode{
   }
 }
 
+class DriveNodeFactory {
+  static create(type,father,name,opt){
+    return this.constructor.classes[type](father,name,opt);
+  }
+}
+DriveNodeFactory.classes={
+  file:(...args)=>(new DriveNodeFile(...args)),
+  directory:(...args)=>(new DriveNodeDirectory(...args)),
+  binary:(...args)=>(new DriveNodeBinary(...args)),
+  link:(...args)=>(new DriveNodeLink(...args))
+}
+
 class Drive {
   constructor() {
     this.root=DriveNodeDirectory(null,'');
-    this.cwd=this.root;
+  }
+  addTo(path,...args){
+    // TODO : j'ai la flemme la tout de suite (28.05.2017 22:24)
+    this.root.walkTo()
+  }
+}
+class DriveController {
+  constructor(drive) {
+    this.drive=drive;
+    this.cwd=drive.root;
   }
   get pwd(){
     return this.cwd.path;
   }
-
+  cd(path){
+    this.cwd = this.cwd.walkTo(path);
+  }
+  ls(path='.',getnode=false){
+    const nd = this.cwd.walkTo(path);
+    let res = [];
+    if(nd.type !== DriveNode.TYPE.DIRECTORY){
+      res = [nd];
+    }else{
+      res nd.children;
+    }
+    if(getnode) return res;
+    else return res.map(e=>e.name);
+  }
 }
 module.exports = {
   Drive,
+  DrivePerm,
   DriveNode,
   DriveNodeDirectory,
   DriveNodeFile,
   DriveNodeBinary,
   DriveNodeLink,
-  DrivePerm};
+  DriveController
+};
+
+// TODO : serialisation de DriveNode[xxx], Drive, DriveController
+// TODO : déserialisation de DriveNode[xxx], Drive, DriveController
+// TODO : creation de node simplifiée pour le Drive ou DriveController a choisir
+// TODO : suppression de node simplifiée
+// TODO : Test unitaire pour chacune des fonctionnalités
+// TODO : debug this shit.
