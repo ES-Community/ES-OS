@@ -264,7 +264,7 @@ class DriveNodeDirectory extends DriveNode{
     let child = this.getChild(name);
     if(child.children!==undefined&&child.children.length>0&&!force)
       throw new Error(`"${child.path}" is not empty, cannot delete`);
-    return this.children.splice(index,1);
+    return this.children.splice(this.indexOfChild(name),1);
   }
 
   /**
@@ -446,7 +446,7 @@ class DriveNodeFactory {
    * @return {DriveNode}                    the node created
    */
   static create(type,father,name,opt={}){
-    return this.constructor.classes[type](father,name,opt);
+    return this.classes[type](father,name,opt);
   }
 }
 DriveNodeFactory.classes={
@@ -513,7 +513,7 @@ class DriveController {
     if(nd.type !== DriveNode.TYPE.DIRECTORY){
       res = [nd];
     }else{
-      res nd.children;
+      res = nd.children;
     }
     if(getnode) return res;
     else return res.map(e=>e.name);
@@ -529,7 +529,8 @@ module.exports = {
   DriveNodeFile,
   DriveNodeBinary,
   DriveNodeLink,
-  DriveController
+  DriveController,
+  DriveNodeFactory
 };
 
 // TODO : serialisation de DriveNode[xxx], Drive, DriveController
