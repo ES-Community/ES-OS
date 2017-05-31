@@ -11,19 +11,26 @@ os.start();
 
 setImmediate(async function() {
     try {
-        const sessID = await os.send({
+        var sessID = await os.send({
             event: 'connect'
         });
-        const sess = await os.login(sessID,"root","root");
-        await os.send({
-            event: 'get_info'
-        });
-        sess.disconnect();
     }
     catch(Err) {
         console.log(Err);
     }
-    finally {
-        process.exit();
+
+    try {
+        var sess = await os.login(sessID,"root","root");
     }
+    catch(Err) {
+        console.log('Failed to log!');
+    }
+
+    os.setPrefix("test");
+    await os.send({
+        event: 'get_info'
+    });
+    sess.disconnect();
+
+    process.exit();
 });
