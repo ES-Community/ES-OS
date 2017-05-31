@@ -60,7 +60,7 @@ describe('DrivePerm', function(){
 
 	it('toObject() should return the object format', function(){
 		let drivePerm = new DrivePerm(permDummy632);
-		expect(deepEqual(drivePerm.toObject(), permDummy632)).to.be.equal(true);
+		expect(drivePerm.toObject()).to.be.deep.equal(permDummy632);
 	});
 
 	it('toString() should return the UNIX string format', function(){
@@ -96,7 +96,7 @@ describe('DriveNodeDirectory', function(){
 	let main = new DriveNodeDirectory(null, '', {perm : 777, own_user : 1, own_group : 1, children : []});
 	let sub = new DriveNodeDirectory(main, 'sub', {perm : 755, own_user : 1, own_group : 1, children : []});
 	let subInserted = new DriveNodeDirectory(null, 'subInserted', {perm : 755, own_user : 1, own_group : 1, children : []});
-	let badChild = new DriveNodeDirectory(main, '/bad', {perm : 755, own_user : 1, own_group : 1, children : []});
+	let badChild = new DriveNodeDirectory(null, '/bad', {perm : 755, own_user : 1, own_group : 1, children : []});
 
 	it('main should have one child due to propagation in child constructor', function(){
 		expect(main.indexOfChild('sub')).to.not.be.equal(-1);
@@ -126,7 +126,31 @@ describe('DriveNodeDirectory', function(){
 		// main.getChild throw an error...
 	});
 
-	//TODO : To complete
+	it('walkTo(name) should return the correct node',function(){
+		sub.addChild(subInserted);
+		expect(sub.walkTo('/')).to.be.deep.equal(main);
+		expect(sub.walkTo('/sub')).to.be.deep.equal(sub);
+		expect(sub.walkTo('/sub/subInserted')).to.be.deep.equal(subInserted);
+		expect(sub.walkTo('.')).to.be.deep.equal(sub);
+		expect(subInserted.walkTo('..')).to.be.deep.equal(sub); //Failing
+		expect(sub.walkTo('..')).to.be.deep.equal(main);
+		expect(sub.walkTo('./../sub/..')).to.be.deep.equal(main);
+		expect(main.walkTo('../../../../../')).to.be.deep.equal(main);
+	});
+
+	it('walkTo(name) should throw if the path doesn\'t exist', function(){
+		expect(main.walkTo.bind(sub, "/doesnt-exist")).to.throw();
+	});
+
+	it('forEach(node) shoud iterate on node and associated children', function(){
+		main.forEach(function rename(node){
+			node.name += "OKTEST";
+		});
+
+		expect(main.name).to.include("OKTEST");
+		expect(sub.name).to.include("OKTEST");
+		expect(subInserted.name).to.include("OKTEST");
+	});
 });
 
 //TODO : To complete

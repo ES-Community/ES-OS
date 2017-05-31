@@ -295,7 +295,7 @@ class DriveNodeDirectory extends DriveNode{
       if(pelem===''||pelem==='.')
         continue;
       if(pelem==='..'){
-        currentNode=currentNode.father||currentNode;
+        currentNode=currentNode.parent||currentNode;
         continue;
       }
       let index = currentNode.indexOfChild(pelem);
@@ -315,10 +315,16 @@ class DriveNodeDirectory extends DriveNode{
    * @param  {Function} cb callback to execute : node => {do domething}
    */
   forEach(cb){
-    (function next(node){
-      cb(node);
-      node.children.forEach(next);
-    })(this)
+    cb(this);
+    if(this.children.length > 0){
+      this.children.forEach(function(child){
+        child.forEach(cb);
+      });
+    }
+    // (function next(node){
+    //   cb(node);
+    //   node.children.forEach(next);
+    // })(this)
   }
 }
 
