@@ -6,6 +6,8 @@ const DrivePerm = Drive.DrivePerm;
 const DriveNodeFactory = Drive.DriveNodeFactory;
 const DriveNodeDirectory = Drive.DriveNodeDirectory;
 const DriveNodeFile = Drive.DriveNodeFile;
+const DriveNodeBinary = Drive.DriveNodeBinary;
+const DriveNodeLink = Drive.DriveNodeLink;
 
 describe('DrivePerm', function(){
 	let permDummy421 = {
@@ -51,7 +53,7 @@ describe('DrivePerm', function(){
 
 	it('setPerm(perm) should throw an exception when perms are not in correct format (like 888)', function(){
 		let drivePerm = new DrivePerm(permDummy421);
-		expect(drivePerm.setPerm.bind(drivePerm, 888)).to.throw();
+		expect(drivePerm.setPerm.call(drivePerm, 888)).to.be.an.instanceof(Error);
 	});
 
 	it('toBin() should return the binary format of permissions', function(){
@@ -73,22 +75,25 @@ describe('DrivePerm', function(){
 });
 
 describe('DriveNodeFactory', function(){
+
+	let file = DriveNodeFactory.create('file', null, 'testFile', {
+		perm: 232,
+		own_user: 2,
+		own_group: 3
+	});
+
 	it('create() should return the correct instance class', function(){
 		let types = ['file', 'directory', 'binary', 'link'];
 		let classes = []
 		for (var i = types.length - 1; i >= 0; i--) {
 			let type = types[i];
-			let node = DriveNodeFactory.create(type, null, '', {});
+			//Trick to bypass the Error in DriveNodeLink
+			let node = DriveNodeFactory.create(type, null, '', {link : file});
 			expect(node.constructor.name.toLowerCase()).to.include(type);
 		}
 	});
 
 	it('create() should forward arguments to type constructors', function(){
-		let file = DriveNodeFactory.create('file', null, 'testFile', {
-			perm: 232,
-			own_user: 2,
-			own_group: 3
-		});
 		expect(file.perm._perm).to.be.equal(232);
 	});
 });
@@ -109,11 +114,11 @@ describe('DriveNodeDirectory', function(){
 	});
 
 	it('addChild(child) should throw when name contains /', function(){
-		expect(main.addChild.bind(main, badChild)).to.throw();
+		expect(main.addChild.call(main, badChild)).to.be.an.instanceof(Error);
 	});
 
 	it('addChild(child) should throw when child with the same name already exist', function(){
-		expect(main.addChild.bind(main, subInserted)).to.throw();
+		expect(main.addChild.call(main, subInserted)).to.be.an.instanceof(Error);
 	});
 
 	it('rmChild(name) should delete a child', function(){
@@ -123,7 +128,7 @@ describe('DriveNodeDirectory', function(){
 
 	it('rmChild(name) should throw when deleting a non-existing child', function(){
 		main.rmChild('subInserted', false);
-		expect(main.rmChild.bind(main, 'subInserted', false)).to.throw();
+		expect(main.rmChild.call(main, 'subInserted', false)).to.be.an.instanceof(Error);
 		// main.getChild throw an error...
 	});
 
@@ -140,7 +145,7 @@ describe('DriveNodeDirectory', function(){
 	});
 
 	it('walkTo(name) should throw if the path doesn\'t exist', function(){
-		expect(main.walkTo.bind(sub, "/doesnt-exist")).to.throw();
+		expect(main.walkTo.call(sub, "/doesnt-exist")).to.be.an.instanceof(Error);
 	});
 
 	it('forEach(node) shoud iterate on node and associated children', function(){
@@ -151,6 +156,28 @@ describe('DriveNodeDirectory', function(){
 		expect(main.name).to.include("OKTEST");
 		expect(sub.name).to.include("OKTEST");
 		expect(subInserted.name).to.include("OKTEST");
+	});
+});
+
+describe('DriveNodeBinary', function(){
+	let buffer = Buffer.from('Hello Mocha');
+	let binFromBuffer = new DriveNodeBinary(null, '', {perm:777,own_user:1,own_group:1,content:buffer});
+	let binFromString = new DriveNodeBinary(null, '', {perm:777,own_user:1,own_group:1,content:'Some content'});
+
+	it('getContent() should return the same content', function(){
+		expect(binFromBuffer.getContent()).to.be.deep.equal(buffer);
+		expect(binFromString.getContent().toString()).to.be.equal("Some content");
+	});
+
+	it('setContent(buffer) should set the content by reference', function(){
+		binFromString.setContent(buffer);
+		expect(binFromString.getContent()).to.be.deep.equal(buffer);
+	});
+
+	it('setContent(string) should recreate a buffer', function(){
+		binFromString.setContent('Hello Mocha');
+		expect(Buffer.isBuffer(binFromString._content)).to.be.true;
+		expect(binFromString._content).to.be.deep.equal(buffer);
 	});
 });
 
@@ -177,5 +204,29 @@ describe('DriveNodeFile', function(){
 		expect(file.read()).to.be.equal('Hello Mocha! Bye Mocha and thank you');
 	});
 });
+
+describe('DriveNodeLink', function(){
+	let file = new DriveNodeFile(null, 'file', {perm : 777, own_user : 1, own_group : 1, content: 'Hello Mocha!'});
+	let link = new DriveNodeLink(null, 'link', {perm : 777, own_user : 1, own_group : 1, link : file});
+	
+	it('constructor should throw if link is not a NodeDrive', function(){
+		let bad = function(){
+			new DriveNodeLink(null, 'link', {perm : 777, own_user : 1, own_group : 1, link : 'oops'});
+		}
+
+		let good = function(){
+			new DriveNodeLink(null, 'link', {perm : 777, own_user : 1, own_group : 1, link : file});
+		}
+		expect(bad).to.throw();
+		expect(good).to.not.throw();
+
+	});
+
+	it('DriveNodeLink should refer to the linked() object', function(){
+		expect(link.linked.getContent().toString()).to.be.equal('Hello Mocha!');
+	});
+});
+
+
 
 //TODO : To complete
