@@ -4,6 +4,7 @@ const Package       = require('./package.js');
 const User          = require('./user.js');
 const Readline      = require('readline');
 const Emitter       = require('events');
+const Net           = require('net');
 const Readable      = require('stream').Readable;
 
 /*
@@ -15,21 +16,43 @@ const SYSCMD = {
 ******************************************************************\n
 ********               ES-OS Version 1.0.0                ********\n
 ******************************************************************\n
-Kernel version : 1.0.0 \n
-All right reserved ES-Community \n\n
+Kernel version : 1.0.0\n
+All right reserved ES-Community\n\n
         `);
         const sess      = new Session();
         const sessID    = sess.getSessionID();
         sess.on('connected',() => {
-            core.stdout.push(`[${sessID}] Session logged as ${sess.user.login} \n`);
+            core.stdout.push(`[${sessID}] Session logged as ${sess.user.login}\n`);
         });
         sess.on('disconnect',() => {
             core.stdout.push(`[${sessID}] Session deleted and disconnected from OS registery\n`);
             core.sessions.delete(sessID);
         });
-        core.stdout.push(`[SYSTEM] Session created with id => ${sessID} \n`);
+        core.stdout.push(`[SYSTEM] Session created with id => ${sessID}\n`);
         core.sessions.set(sessID,sess);
-        return sessID;
+        return {
+            event: 'connect',
+            data: {sessID}
+        };
+    },
+    "auth": async(core,pkg) => {
+        const sessID = pkg.data.sessID;
+        if(sessID == undefined) {
+            throw new Error("No sessionID provided");
+        }
+
+        core.stdout.push(`[${sessID}] Authentification requested!\n`); 
+        try {
+            await core.login(sessID,pkg.data.user,pkg.data.password);
+            core.stdout.push('Authentification successfull!\n');
+        }
+        catch(Err) {
+            core.stdout.push('Authentification failed!\n');
+        }
+
+        return {
+            event: 'authentification'
+        }
     },
     "setp": async (core,pkg) => {
         const prefix = pkg.data[0];
@@ -47,8 +70,7 @@ All right reserved ES-Community \n\n
  * Interfaces
  */
 const ICoreConstructor = {
-    ip: "0.0.0.0",
-    sessionTimeOut: 5000,
+    sessionTimeOut: 60000,
     sessions: new Map(),
     stdout: new Readable(),
     started: false
@@ -120,7 +142,7 @@ class Core extends Emitter {
         this.started = false;
     }
 
-    reebot(timeMs = 5000) {
+    reboot(timeMs = 5000) {
         this.stop();
         this.TOReboot = setTimeout(() => {
             this.TOReboot = undefined;
@@ -178,14 +200,57 @@ class Core extends Emitter {
         });
     }
 
-    send(pkg) {
+    createSocketServer(port) {
+        if(port == undefined || typeof port !== 'number') {
+            throw new TypeError("Invalid port");
+        }
+        this.socketServer = Net.createServer( (socket) => {
+
+            this.stdout.on('data',chunk => {
+                /*socket.write(JSON.stringify({
+                    event: 'stdout',
+                    data: chunk.toString()
+                }));*/
+            });
+
+            socket.on('data', async(buf) => {
+                try {
+                    const pkg = JSON.parse(buf.toString());
+                    try {
+                        var res = await this.handleNetworkPackage(pkg);
+                    }
+                    catch(error) {
+                        console.log(error);
+                        var res = {error};
+                    }
+                    socket.write(typeof res === 'object' ? JSON.stringify(res) : res.toString());
+                }
+                catch(Err) {
+                    this.stdout.push('Failed to push data package!\n');
+                }
+            });
+
+            socket.on('close',() => {
+                console.log('socket closed!');
+            });
+
+            socket.on('error', err => {
+                // silent!
+            });
+
+        });
+        this.socketServer.listen(port);
+        this.stdout.push('Socket server started!\n');
+    }
+
+    handleNetworkPackage(pkg) {
         return new Promise(async (resolve,reject) => {
             if(this.started === false) {
                 reject("OS Not started!");
                 return;
             }
 
-            this.stdout.push('[SYSTEM] Pkg received ');
+            this.stdout.push('[SYSTEM] New package received');
             this.stdout.push(JSON.stringify(pkg)+'\n');
             this.stdout.push('--------------------\n');
 
