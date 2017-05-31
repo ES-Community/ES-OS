@@ -329,59 +329,6 @@ class DriveNodeDirectory extends DriveNode{
 }
 
 /**
- * Child of DriveNode that is used like a text file
- */
-class DriveNodeFile extends DriveNode {
-  /**
-   * Instantiate a NodeFile (string)
-   * @param  {DriveNode}  parent          parent node (folder)
-   * @param  {string}     name            Name of the node like the filename
-   * @param  {integer}    [perm=777]      the perm that will be set to DrivePerm
-   * @param  {integer}    [own_user=1]    the id of the user that own the node
-   * @param  {integer}    [own_group=1]   the id of the group that own the node
-   * @param  {string}     [content='']    content of the file
-   * @return {DriveNode}                  the instantiated object
-   */
-  constructor(father,name,{perm=777,own_user=1,own_group=1,content=''}){
-    super(father,name,{perm,own_user,own_group});
-    this.type=this.constructor.TYPE.FILE;
-    this.content=content;
-  }
-
-  /**
-   * Change the content of the file
-   * @param  {string} text the text to set in the content
-   */
-  write(text){
-    this.content=text;
-  }
-
-  /**
-   * get the full content of the file
-   * @return {string} content of the file
-   */
-  read(){
-    return this.content;
-  }
-
-  /**
-   * append text to the content
-   * @param  {string} text text to append to the content
-   */
-  append(text){
-    this.content += text;
-  }
-
-  /**
-   * prepend text to the content
-   * @param  {string} text text to prepend to the content
-   */
-  prepend(text){
-    this.content = text+this.content;
-  }
-}
-
-/**
  * Child of DriveNode that is used like a binary file (not ready to use...)
  */
 class DriveNodeBinary extends DriveNode {
@@ -398,7 +345,7 @@ class DriveNodeBinary extends DriveNode {
   constructor(father,name,{perm=777,own_user=1,own_group=1,content=''}){
     super(father,name,{perm,own_user,own_group});
     this.type=this.constructor.TYPE.FILE;
-    this._content=new Buffer();
+    this._content=Buffer.from(content);
     this.setContent(content);
   }
 
@@ -422,6 +369,60 @@ class DriveNodeBinary extends DriveNode {
     }
   }
 }
+
+/**
+ * Child of DriveNodeBinary that is used like a text file
+ */
+class DriveNodeFile extends DriveNodeBinary {
+  /**
+   * Instantiate a NodeFile (string)
+   * @param  {DriveNode}  parent          parent node (folder)
+   * @param  {string}     name            Name of the node like the filename
+   * @param  {integer}    [perm=777]      the perm that will be set to DrivePerm
+   * @param  {integer}    [own_user=1]    the id of the user that own the node
+   * @param  {integer}    [own_group=1]   the id of the group that own the node
+   * @param  {string}     [content='']    content of the file
+   * @return {DriveNode}                  the instantiated object
+   */
+  constructor(father,name,{perm=777,own_user=1,own_group=1,content=''}){
+    super(father,name,{perm,own_user,own_group, content: new Buffer(content)});
+    this.type=this.constructor.TYPE.FILE;
+  }
+
+  /**
+   * Change the content of the file
+   * @param  {string} text the text to set in the content
+   */
+  write(text){
+    this._content=Buffer.from(text);
+  }
+
+  /**
+   * get the full content of the file
+   * @return {string} content of the file
+   */
+  read(){
+    return this._content.toString('utf8');
+  }
+
+  /**
+   * append text to the content
+   * @param  {string} text text to append to the content
+   */
+  append(text){
+    this._content = Buffer.concat([this._content, Buffer.from(text)]);
+  }
+
+  /**
+   * prepend text to the content
+   * @param  {string} text text to prepend to the content
+   */
+  prepend(text){
+    this._content = Buffer.concat([Buffer.from(text), this._content])
+  }
+}
+
+
 
 /**
  * Child of DriveNode that is used like link
