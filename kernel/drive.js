@@ -26,7 +26,7 @@ class DrivePerm {
   setPerm(perm){
     if(typeof perm === 'number'||typeof perm === 'string'){
       perm = Number(perm);
-      if(perm>777||perm<0)throw new Error('DrivePerm.perm need to be an integer between 0 and 777');
+      if(perm>777||perm<0)return new Error('DrivePerm.perm need to be an integer between 0 and 777');
       this._perm=perm;
     }
     else if (typeof perm === 'object'){
@@ -170,7 +170,11 @@ class DriveNode{
   setParent(node){
     if(node!=null){
       this.parent=node;
-      this.parent.addChild(this);
+      let result = this.parent.addChild(this);
+      if(result instanceof Error){
+        this.parent = null;
+        throw error;
+      }
     }
   }
 
@@ -248,7 +252,7 @@ class DriveNodeDirectory extends DriveNode{
   getChild(name){
     let index = this.indexOfChild(name);
     if(index === -1)
-      throw new Error(`"${this.path}" hasn't child named "${name}"`);
+      return new Error(`"${this.path}" hasn't child named "${name}"`);
     return this.children[index];
   }
 
@@ -258,25 +262,29 @@ class DriveNodeDirectory extends DriveNode{
    */
   addChild(driveNode){
     if(!(driveNode instanceof DriveNode))
-      throw new Error(`cannot add child who is not a DriveNode instance`);
+      return new Error(`cannot add child who is not a DriveNode instance`);
     if(driveNode.name && driveNode.name.indexOf('/')!==-1)
-      throw new Error(`"/" is not allowed on file name`);
+      return new Error(`"/" is not allowed on file name`);
     if(this.indexOfChild(driveNode.name)!==-1)
-      throw new Error(`"${driveNode.name}" already exist on "${this.path}"`);
+      return new Error(`"${driveNode.name}" already exist on "${this.path}"`);
     this.children.push(driveNode);
     driveNode.parent=this;
+    return null;
   }
 
   /**
    * Remove and get the child of this node
    * @param  {string}  name          the name of the children you are looking for
-   * @param  {Boolean} [force=false] if children of selected node is not empty, throw error unless force is set to true
+   * @param  {Boolean} [force=false] if children of selected node is not empty, return error unless force is set to true
    * @return {DriveNode}             the node that is removed from this node
    */
   rmChild(name,force=false){
     let child = this.getChild(name);
+    if(child instanceof Error){
+      return child;
+    }
     if(child.children!==undefined&&child.children.length>0&&!force)
-      throw new Error(`"${child.path}" is not empty, cannot delete`);
+      return new Error(`"${child.path}" is not empty, cannot delete`);
     return this.children.splice(this.indexOfChild(name),1);
   }
 
@@ -300,9 +308,9 @@ class DriveNodeDirectory extends DriveNode{
       }
       let index = currentNode.indexOfChild(pelem);
       if(index===-1) {
-        throw new Error(`cannot find "${path}" from "${this.path}"`);
+        return new Error(`cannot find "${path}" from "${this.path}"`);
       }else if(index===-2 && pathArray.length-1!==i){
-        throw new Error(`"${pelem}" is not a directory on "${path}" from "${this.path}"`);
+        return new Error(`"${pelem}" is not a directory on "${path}" from "${this.path}"`);
       } else {
         currentNode=currentNode.children[index];
       }
@@ -435,12 +443,15 @@ class DriveNodeLink extends DriveNode{
    * @param  {integer}    [perm=777]      the perm that will be set to DrivePerm
    * @param  {integer}    [own_user=1]    the id of the user that own the node
    * @param  {integer}    [own_group=1]   the id of the group that own the node
-   * @param  {string}     [link='']       the path of the linked file
+   * @param  {string}     link            the path of the linked file
    * @return {DriveNode}                  the instantiated object
    */
-  constructor(father,name,{perm=777,own_user=1,own_group=1,link=''}){
+  constructor(father,name,{perm=777,own_user=1,own_group=1,link}){
     super(father,name,{perm,own_user,own_group});
     this.type=this.constructor.TYPE.FILE;
+    if(!(link instanceof DriveNode)){
+      throw new Error("Link must be a DriveNode");
+    }
     this.link=link;
   }
 
@@ -449,7 +460,7 @@ class DriveNodeLink extends DriveNode{
    * @return {DriveNode} the linked node
    */
   get linked(){
-    return this.rootNode.walkTo(this.link);
+    return this.link;
   }
 }
 
@@ -483,9 +494,39 @@ class Drive {
   constructor() {
     this.root=DriveNodeDirectory(null,'');
   }
-  addTo(path,...args){
-    // TODO : j'ai la flemme la tout de suite (28.05.2017 22:24)
-    this.root.walkTo()
+  /**
+   * Add a node to a path
+   * @param {NodeDrive | string}
+   */
+  addTo(path,node){
+    if(typeof path === "string"){
+      let resultWalk = this.root.walkTo(path);
+      if(resultWalk instanceof Error){
+        throw resultWalk;
+      }
+    }else if(!(resultWalk instanceof NodeDrive)){
+      throw new Error("Path must be a NodeDrive or a string representating the path of a NodeDrive");
+    }
+    let result = resultWalk.addChild(node);
+    if(result instanceof Error){
+      throw result;
+    }
+  }
+
+  removeFrom(path, node){
+    if(typeof path === "string"){
+      let resultWalk = this.root.walkTo(path);
+      if(resultWalk instanceof Error){
+        throw new Error(`Cannot find ${path}`);
+      }
+    }
+    else if(!(path instanceof NodeDrive)){
+      throw new Error("Path must be a NodeDrive or a string representating the path of a NodeDrive");
+    }
+    let result = resultWalk.rmChild(node);
+    if(result instanceof Error){
+      throw result;
+    }
   }
 }
 
@@ -516,6 +557,9 @@ class DriveController {
    */
   cd(path){
     let node = this.cwd.walkTo(path);
+    if(node == null){
+      throw new Error(`Cannot find ${node}`);
+    }
     if(node.type !== DriveNode.TYPE.DIRECTORY)
       throw new Error(`${path} is not a directory`)
     this.cwd = node;
@@ -529,6 +573,9 @@ class DriveController {
    */
   ls(path='.',getnode=false){
     const nd = this.cwd.walkTo(path);
+    if(nd == null){
+      throw new Error(`Cannot find ${nd}`);
+    }
     let res = [];
     if(nd.type !== DriveNode.TYPE.DIRECTORY){
       res = [nd];
