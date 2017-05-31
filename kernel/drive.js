@@ -369,7 +369,7 @@ class DriveNodeFile extends DriveNode {
    * @param  {string} text text to append to the content
    */
   append(text){
-    this.content+=text;
+    this.content += text;
   }
 
   /**
@@ -377,7 +377,7 @@ class DriveNodeFile extends DriveNode {
    * @param  {string} text text to prepend to the content
    */
   prepend(text){
-    this.content=text+=this.content;
+    this.content= text+this.content;
   }
 }
 

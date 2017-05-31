@@ -5,6 +5,7 @@ const Drive = require('../kernel/drive.js');
 const DrivePerm = Drive.DrivePerm;
 const DriveNodeFactory = Drive.DriveNodeFactory;
 const DriveNodeDirectory = Drive.DriveNodeDirectory;
+const DriveNodeFile = Drive.DriveNodeFile;
 
 describe('DrivePerm', function(){
 	let permDummy421 = {
@@ -150,6 +151,30 @@ describe('DriveNodeDirectory', function(){
 		expect(main.name).to.include("OKTEST");
 		expect(sub.name).to.include("OKTEST");
 		expect(subInserted.name).to.include("OKTEST");
+	});
+});
+
+describe('DriveNodeFile', function(){
+	let main = new DriveNodeDirectory(null, '', {perm : 777, own_user : 1, own_group : 1, children : []});
+	let file = new DriveNodeFile(main, 'file', {perm : 777, own_user : 1, own_group : 1, content: 'Hello Mocha!'});
+
+	it('read() should return the file content', function(){
+		expect(file.read()).to.be.equal('Hello Mocha!');
+	});
+
+	it('write(text) should erase the old content', function(){
+		file.write('Bye Mocha');
+		expect(file.read()).to.be.equal('Bye Mocha');
+	});
+
+	it('append(text) should append to the content', function(){
+		file.append(' and thank you');
+		expect(file.read()).to.be.equal('Bye Mocha and thank you');
+	});
+
+	it('prepend(text) should prepend to the content', function(){
+		file.prepend('Hello Mocha! ');
+		expect(file.read()).to.be.equal('Hello Mocha! Bye Mocha and thank you');
 	});
 });
 
