@@ -377,7 +377,7 @@ class DriveNodeFile extends DriveNode {
    * @param  {string} text text to prepend to the content
    */
   prepend(text){
-    this.content= text+this.content;
+    this.content = text+this.content;
   }
 }
 
@@ -398,7 +398,7 @@ class DriveNodeBinary extends DriveNode {
   constructor(father,name,{perm=777,own_user=1,own_group=1,content=''}){
     super(father,name,{perm,own_user,own_group});
     this.type=this.constructor.TYPE.FILE;
-    this._content='';
+    this._content=new Buffer();
     this.setContent(content);
   }
 
@@ -407,7 +407,7 @@ class DriveNodeBinary extends DriveNode {
    * @return {Buffer} the content of the file
    */
   getContent(){
-    return new Buffer(this._content,'base64');
+    return this._content;
   }
 
   /**
@@ -416,9 +416,9 @@ class DriveNodeBinary extends DriveNode {
    */
   setContent(binary){
     if(binary instanceof Buffer){
-      this._content = binary.toString('base64');
+      this._content = binary;
     }else{
-      this._content = new Buffer(binary).toString('base64');
+      this._content = new Buffer(binary);
     }
   }
 }
