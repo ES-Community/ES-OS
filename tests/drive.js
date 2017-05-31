@@ -95,7 +95,7 @@ describe('DriveNodeFactory', function(){
 describe('DriveNodeDirectory', function(){
 	let main = new DriveNodeDirectory(null, '', {perm : 777, own_user : 1, own_group : 1, children : []});
 	let sub = new DriveNodeDirectory(main, 'sub', {perm : 755, own_user : 1, own_group : 1, children : []});
-	let subInserted = new DriveNodeDirectory(main, 'subInserted', {perm : 755, own_user : 1, own_group : 1, children : []});
+	let subInserted = new DriveNodeDirectory(null, 'subInserted', {perm : 755, own_user : 1, own_group : 1, children : []});
 	let badChild = new DriveNodeDirectory(main, '/bad', {perm : 755, own_user : 1, own_group : 1, children : []});
 
 	it('main should have one child due to propagation in child constructor', function(){
@@ -123,6 +123,7 @@ describe('DriveNodeDirectory', function(){
 	it('rmChild(name) should throw when deleting a non-existing child', function(){
 		main.rmChild('subInserted', false);
 		expect(main.rmChild.bind(main, 'subInserted', false)).to.throw();
+		// main.getChild throw an error...
 	});
 
 	//TODO : To complete

@@ -26,7 +26,7 @@ class DrivePerm {
   setPerm(perm){
     if(typeof perm === 'number'||typeof perm === 'string'){
       perm = Number(perm);
-      if(perm>777||perm<0)perm =777;
+      if(perm>777||perm<0)throw new Error('DrivePerm.perm need to be an integer between 0 and 777');
       this._perm=perm;
     }
     else if (typeof perm === 'object'){
@@ -122,7 +122,8 @@ class DriveNode{
    * @return {DriveNode}                  the instantiated object
    */
   constructor(parent,name,{perm=777,own_user=1,own_group=1}){
-    this.parent=parent;
+    this.parent=null;
+    this.setParent(parent);
     this.type=this.constructor.TYPE.UNDEFINED;
     this.perm=new DrivePerm(perm);
     this.own={
@@ -160,6 +161,17 @@ class DriveNode{
       depth++;
     }
     return depth
+  }
+
+  /**
+   * Set parent node
+   * @param {DriveNodeDirectory} node The parent node
+   */
+  setParent(node){
+    if(node!=null){
+      this.parent=node;
+      this.parent.addChild(this);
+    }
   }
 
   /**
@@ -247,11 +259,12 @@ class DriveNodeDirectory extends DriveNode{
   addChild(driveNode){
     if(!(driveNode instanceof DriveNode))
       throw new Error(`cannot add child who is not a DriveNode instance`);
-    if(driveNode.name.indexOf('/')!==-1)
+    if(driveNode.name && driveNode.name.indexOf('/')!==-1)
       throw new Error(`"/" is not allowed on file name`);
     if(this.indexOfChild(driveNode.name)!==-1)
       throw new Error(`"${driveNode.name}" already exist on "${this.path}"`);
     this.children.push(driveNode);
+    driveNode.parent=this;
   }
 
   /**
